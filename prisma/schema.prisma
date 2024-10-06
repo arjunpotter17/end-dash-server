@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,15 +7,23 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-
 model Records {
-  Wallet_address    String    @id // Primary key
-  Device_id         String    @unique
+  id                Int      @id @default(autoincrement())
+  Wallet_address    String   @unique 
+  Device_id         String   
   SST_value         Float
   Latitude          Float
   Longitude         Float
   End_balance       Float
   Gaia_balance      Float
-  Claimed           Boolean   @default(false)
+  Claimed           Boolean  @default(false)
   Time              DateTime
+}
+
+model RegisteredKeys {
+  id                Int      @id @default(autoincrement())
+  Wallet_address    String
+  Device_id         String
+
+  @@unique([Wallet_address, Device_id]) // Ensure unique combination of Wallet_address and Device_id
 }

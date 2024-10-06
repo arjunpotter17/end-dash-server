@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
 import { entrySchema } from "../validations/entryValidation.js";
+import { registerSchema } from "../validations/registerValidation.js";
 
 const prisma = new PrismaClient();
 
@@ -38,24 +39,106 @@ export const createEntry = async (req: Request, res: Response) => {
       Time,
     } = req.body;
 
-    // Validation can be added here if needed
-
-    const newEntry = await prisma.records.create({
-      data: {
+    // Check if the device is registered
+    const isRegistered = await prisma.registeredKeys.findFirst({
+      where: {
         Wallet_address,
         Device_id,
-        SST_value,
-        Latitude,
-        Longitude,
-        End_balance,
-        Gaia_balance,
-        Claimed: false, // Claimed defaults to false
-        Time: new Date(Time),
       },
     });
 
+    if (!isRegistered) {
+      return res.status(400).json({
+        error: "Device is not registered. Please register your device first.",
+      });
+    }
+
+    // Check if a record already exists with the given Wallet_address and Device_id
+    const existingRecord = await prisma.records.findFirst({
+      where: {
+        Wallet_address,
+        Device_id,
+      },
+    });
+
+    let newEntry;
+
+    if (existingRecord) {
+      // If the record exists, update it
+      newEntry = await prisma.records.update({
+        where: {
+          Wallet_address: Wallet_address,
+        },
+        data: {
+          SST_value,
+          Latitude,
+          Longitude,
+          End_balance,
+          Gaia_balance,
+          Time: new Date(Time),
+          Claimed: false, // Optionally reset Claimed to false on update
+        },
+      });
+    } else {
+      // If no record exists, create a new one
+      newEntry = await prisma.records.create({
+        data: {
+          Wallet_address,
+          Device_id,
+          SST_value,
+          Latitude,
+          Longitude,
+          End_balance,
+          Gaia_balance,
+          Claimed: false, // Claimed defaults to false
+          Time: new Date(Time),
+        },
+      });
+    }
+
     return res.status(201).json(newEntry);
   } catch (error) {
-    return res.status(500).json({ error: "Failed to create record" });
+    console.error(error);
+    return res.status(500).json({ error: "Failed to create or update record" });
+  }
+};
+
+export const registerDevice = async (req: Request, res: Response) => {
+  try {
+    const parsedBody = registerSchema.safeParse(req.body);
+
+    // If validation fails, return error
+    if (!parsedBody.success) {
+      return res.status(400).json({ error: parsedBody.error.errors });
+    }
+
+    const { Wallet_address, Device_id } = req.body;
+
+    // Check if the device is already registered
+    const isRegistered = await prisma.registeredKeys.findFirst({
+      where: {
+        Wallet_address,
+      },
+    });
+
+    if (isRegistered) {
+      return res.status(400).json({
+        error: "This PublicKey is already registered to a device",
+      });
+    }
+
+    const newRegistration = await prisma.registeredKeys.create({
+      data: {
+        Wallet_address,
+        Device_id,
+      },
+    });
+
+    return res
+      .status(201)
+      .json({ message: "Device registered successfully", newRegistration });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: "Failed to register device" });
   }
 };
