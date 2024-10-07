@@ -142,3 +142,64 @@ export const registerDevice = async (req: Request, res: Response) => {
     return res.status(500).json({ error: "Failed to register device" });
   }
 };
+
+export const getRecentData = async (req: Request, res: Response) => {
+  try {
+    const { field } = req.query;
+
+    // Get the date from 24 hours ago
+    const twentyFourHoursAgo = new Date(
+      new Date().getTime() - 24 * 60 * 60 * 1000
+    ).toISOString();
+
+    // Determine what fields to select based on the query params
+    let selectFields: any = {};
+    if (field) {
+      const requestedFields = field.split(",");
+      if (requestedFields.includes("pubkey")) {
+        selectFields = {
+          Wallet_address: true,
+          Device_id: true,
+        };
+        // selectFields.Wallet_address = true;
+      } else if (requestedFields.includes("sst")) {
+        // selectFields.SST_value = true;
+        selectFields = {
+          SST_value: true,
+          Device_id: true,
+        };
+      } else {
+        throw new Error("Invalid field parameter");
+      }
+    } else {
+      // Default to just returning the public keys
+      selectFields = {
+        Wallet_address: true,
+        Device_id: true,
+      };
+    }
+
+    // Query the database for records from the last 24 hours
+    const recentEntries = await prisma.records.findMany({
+      where: {
+        Time: {
+          gte: twentyFourHoursAgo,
+        },
+      },
+      select: selectFields,
+    });
+
+    if (recentEntries.length === 0) {
+      return res
+        .status(204)
+        .json({ message: "No records found in the last 24 hours" });
+    }
+
+    return res.status(200).json({ data: recentEntries });
+  } catch (error) {
+    console.error(error);
+    return res
+      .status(500)
+      .json({ error: "Failed to fetch records", message: error.message });
+  }
+};
