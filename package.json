@@ -9,7 +9,7 @@
   },
   "name": "end-dash-server",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "app.js",
   "type": "module",
   "devDependencies": {
     "@types/node": "^22.7.4",
@@ -17,7 +17,8 @@
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "tsc"
+    "build": "tsc",
+    "start": "node app.js"
   },
   "keywords": [],
   "author": "",
